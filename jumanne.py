@@ -1,15 +1,44 @@
 from simple_youtube_api.Channel import Channel as YTChannel
 from simple_youtube_api.LocalVideo import LocalVideo
-from pytube import YouTube,Channel
+from pytube import YouTube
 import scrapetube
 import os.path
-import ffmpeg
 import subprocess
+import requests
+from PIL import Image
 
 
 # loggin into the channel
 channel = YTChannel()
 channel.login("client_secret.json", "credentials.storage")
+
+def crop_image(image_path):
+    """Crops an image to a specific aspect ratio.
+
+    Args:
+        image_path: The path to the image file.
+        aspect_ratio: The desired aspect ratio of the cropped image.
+
+    Returns:
+        A PIL Image object of the cropped image.
+    """
+    aspect_ratio = 16 / 9
+
+    image = Image.open(image_path)
+    width, height = image.size
+
+    # Calculate the new width and height of the cropped image.
+    new_width = width
+    new_height = int(width / aspect_ratio)
+
+    # Calculate the cropping coordinates to crop equally from the top and bottom.
+    top = (height - new_height) // 2
+    bottom = top + new_height
+
+    # Crop the image to the new width and height.
+    cropped_image = image.crop((0, top, new_width, bottom))
+
+    cropped_image.save(image_path)
 
 def download_video(video, id):
     output_path = os.path.join('videos', video.author.replace(" ", ""))
@@ -20,13 +49,16 @@ def download_video(video, id):
     # Download video and audio streams
     video_stream = video.streams.filter(progressive=False, file_extension='mp4').order_by('resolution').desc().first()
     audio_stream = video.streams.filter(progressive=False, type='audio').order_by('abr').desc().first()
-    print(video_stream)
-    print(audio_stream)
-    
+
     video_filename = id + "_video.mp4"
     audio_filename = id + "_audio." + audio_stream.subtype
-    
+
+    print(video_stream)
+    print("Downloading video to: " + os.path.join(output_path, video_filename))
     video_stream.download(output_path=output_path, filename=video_filename)
+
+    print(audio_stream)
+    print("Downloading audio to: " + os.path.join(output_path, audio_filename))
     audio_stream.download(output_path=output_path, filename=audio_filename)
     
     # Combine audio and video using ffmpeg
@@ -34,13 +66,11 @@ def download_video(video, id):
     input_audio_path = os.path.join("C:\\GitHub\\Jumanne", output_path, audio_filename)
     output_video_path = os.path.join("C:\\GitHub\\Jumanne", output_path, id + ".mp4")
 
-    print(input_video_path)
-    print(input_audio_path)
-    print(output_video_path)
+    print("Processing video and audio...")
     command = f"{r"C:\Users\weska\ffmpeg\ffmpeg.exe"} -i {input_video_path} -i {input_audio_path} -c:v copy -c:a aac {output_video_path}"
     try:
         subprocess.run(command, check=True, shell=True)
-        print("ffmpeg command executed successfully.")
+        print("Video and audio processed successfully")
     except subprocess.CalledProcessError as e:
         print(f"Error executing ffmpeg command: {e}")
     
@@ -48,7 +78,7 @@ def download_video(video, id):
     os.remove(os.path.join(output_path, video_filename))
     os.remove(os.path.join(output_path, audio_filename))
     
-    print(video.title + " downloaded!")
+    print(video.title + " (" + id + ") downloaded and processed successfully! " + output_video_path)
 
 def archive_video(video):
     id = video.vid_info['videoDetails']['videoId']
@@ -60,12 +90,12 @@ def archive_video(video):
                     video_been_archived = True
     except FileNotFoundError:
         with open('archived/'+video.author+'.txt', 'w') as file:
-            print("created file!")
+            print("Created file for video ids of "+video.author+"!")
     with open('archived/'+video.author+'.txt', 'a') as file:
             if not video_been_archived:
-                print("archiving video: "+video.title+" ("+id+")")
+                print("Archiving video: "+video.title+" ("+id+")")
                 download_video(video,id)
-                ## upload video
+                upload_video(video,id)
                 file.write(id+"\n")
             else:
                 print("Video already archived: "+video.title+" ("+id+")")
@@ -77,33 +107,41 @@ def archive_channel(channel_id):
     for video in videos:
         archive_video(YouTube('https://www.youtube.com/watch?v='+video['videoId']))
 
-def upload_video(filename):
+def upload_video(video:YouTube,id):
     # setting up the video that is going to be uploaded
-    video = LocalVideo(file_path="test_vid.mp4")
+    output_path = os.path.join('videos', video.author.replace(" ", ""))
+    print(output_path)
+    localvideo = LocalVideo(file_path=output_path+"\\"+id+".mp4")
 
     # setting snippet
-    video.set_title("My Title")
-    video.set_description("This is a description")
-    video.set_tags(["this", "tag"])
-    video.set_category("gaming")
-    video.set_default_language("en-US")
+    localvideo.set_title("["+video.author+"] "+video.title)
+    localvideo.set_description("This video was originally posted on the "+video.author+" channel on "+video.publish_date.strftime("%A, %B %e, %Y at %I:%M:%S %p")+".\n"+video.description)
+    localvideo.set_tags(["Jumanne", "Archive", video.author, video.title])
+    localvideo.set_category("entertainment")
+    localvideo.set_default_language("en-US")
+    localvideo.set_made_for_kids(False)
 
     # setting status
-    video.set_embeddable(True)
-    video.set_license("creativeCommon")
-    video.set_privacy_status("private")
-    video.set_public_stats_viewable(True)
+    localvideo.set_embeddable(True)
+    localvideo.set_license("creativeCommon")
+    localvideo.set_privacy_status("private")
+    localvideo.set_public_stats_viewable(True)
 
     # setting thumbnail
-    #video.set_thumbnail_path("test_thumb.png")
+    img_data = requests.get(video.vid_info['videoDetails']['thumbnail']['thumbnails'][-1]['url']).content
+    thumbnail_path = 'thumbnails\\'+id+'.jpg'
+    with open(thumbnail_path, 'wb') as handler:
+        handler.write(img_data)
+    crop_image(thumbnail_path)
+    localvideo.set_thumbnail_path(thumbnail_path)
+    print(video.vid_info['videoDetails']['thumbnail']['thumbnails'][-1]['url'])
     #video.set_playlist("PLDjcYN-DQyqTeSzCg-54m4stTVyQaJrGi")
 
     # uploading video and printing the results
-    video = channel.upload_video(video)
-    print(video.id)
-    print(video)
+    localvideo = channel.upload_video(localvideo)
+    print(localvideo, " Video uploaded successfully!")
 
     # liking video
-    video.like()
+    localvideo.like()
 
 archive_channel('UCb69WJJK-8FFvaNYw2q3OZA')

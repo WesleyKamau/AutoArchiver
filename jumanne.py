@@ -12,6 +12,14 @@ from PIL import Image
 channel = YTChannel()
 channel.login("client_secret.json", "credentials.storage")
 
+def initialize_folders():
+    if not os.path.exists('videos'):
+        os.makedirs('videos')
+    if not os.path.exists('thumbnails'):
+        os.makedirs('thumbnails')
+    if not os.path.exists('archived'):
+        os.makedirs('archived')
+
 def crop_image(image_path):
     """Crops an image to a specific aspect ratio.
 
@@ -40,6 +48,11 @@ def crop_image(image_path):
 
     cropped_image.save(image_path)
 
+def delete_video(video,id):
+    output_path = os.path.join('videos', video.author.replace(" ", ""))
+    os.remove(os.path.join(output_path, id + ".mp4"))
+    os.remove(os.path.join('thumbnails', id + ".jpg"))
+
 def download_video(video, id):
     output_path = os.path.join('videos', video.author.replace(" ", ""))
     if not os.path.exists(output_path):
@@ -62,12 +75,12 @@ def download_video(video, id):
     audio_stream.download(output_path=output_path, filename=audio_filename)
     
     # Combine audio and video using ffmpeg
-    input_video_path = os.path.join("C:\\GitHub\\Jumanne", output_path, video_filename)
-    input_audio_path = os.path.join("C:\\GitHub\\Jumanne", output_path, audio_filename)
-    output_video_path = os.path.join("C:\\GitHub\\Jumanne", output_path, id + ".mp4")
+    input_video_path = os.path.join(output_path, video_filename)
+    input_audio_path = os.path.join(output_path, audio_filename)
+    output_video_path = os.path.join(output_path, id + ".mp4")
 
     print("Processing video and audio...")
-    command = f"{r"C:\Users\weska\ffmpeg\ffmpeg.exe"} -i {input_video_path} -i {input_audio_path} -c:v copy -c:a aac {output_video_path}"
+    command = f"ffmpeg -i {input_video_path} -i {input_audio_path} -c:v copy -c:a aac {output_video_path}"
     try:
         subprocess.run(command, check=True, shell=True)
         print("Video and audio processed successfully")
@@ -96,6 +109,7 @@ def archive_video(video):
                 print("Archiving video: "+video.title+" ("+id+")")
                 download_video(video,id)
                 upload_video(video,id)
+                delete_video(video,id) ## Enable this line to delete the video after uploading
                 file.write(id+"\n")
             else:
                 print("Video already archived: "+video.title+" ("+id+")")
@@ -103,6 +117,7 @@ def archive_video(video):
 
 
 def archive_channel(channel_id):
+    initialize_folders()
     videos = scrapetube.get_channel(channel_id)
     for video in videos:
         archive_video(YouTube('https://www.youtube.com/watch?v='+video['videoId']))
@@ -115,7 +130,7 @@ def upload_video(video:YouTube,id):
 
     # setting snippet
     localvideo.set_title("["+video.author+"] "+video.title)
-    localvideo.set_description("This video was originally posted on the "+video.author+" channel on "+video.publish_date.strftime("%A, %B %e, %Y at %I:%M:%S %p")+".\n"+video.description)
+    localvideo.set_description("This video was originally posted on the "+video.author+" channel on "+video.publish_date.strftime("%A, %B %e, %Y")+".\nOriginal link: https://www.youtube.com/watch?v="+id+"\n"+video.description)
     localvideo.set_tags(["Jumanne", "Archive", video.author, video.title])
     localvideo.set_category("entertainment")
     localvideo.set_default_language("en-US")

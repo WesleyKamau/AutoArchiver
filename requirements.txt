@@ -1,0 +1,7 @@
+simple-youtube-api
+pytube
+scrapetube
+requests
+Pillow
+selenium
+webdriver-manager

@@ -20,6 +20,8 @@ import time
 import os
 from dotenv import load_dotenv
 
+
+
 load_dotenv()
 
 # loggin into the channel
@@ -135,7 +137,9 @@ def archive_channel(channel_id):
     initialize_folders()
     videos = scrapetube.get_channel(channel_id)
     for video in videos:
-        archive_video(YouTube('https://www.youtube.com/watch?v='+video['videoId']))
+        archive_video(YouTube('https://www.youtube.com/watch?v='+video['videoId'],
+        use_oauth=True,
+        allow_oauth_cache=True))
 
 def upload_video(video:YouTube,id):
     # setting up the video that is going to be uploaded
@@ -181,7 +185,9 @@ def browser_upload(video:YouTube,id):
     
     # Define local variables
     TITLE = "["+video.author+"] "+video.title
-    DESCRIPTION = "This video was originally posted on the "+video.author+" channel on "+video.publish_date.strftime("%A, %B %e, %Y")+".\nOriginal link: https://www.youtube.com/watch?v="+id+"\n"+video.description
+    DESCRIPTION = "This video was originally posted on the "+video.author+" channel on "+video.publish_date.strftime("%A, %B %e, %Y")+".\nOriginal link: https://www.youtube.com/watch?v="+id
+    if(video.description != None):
+        DESCRIPTION += "\n"+video.description
     TAGS = f'Jumanne, Archive, {video.author}, {video.title}'
     VIDEO_PATH = output_path+"\\"+id+".mp4"
     THUMBNAIL_PATH = thumbnail_path
@@ -252,6 +258,7 @@ def browser_upload(video:YouTube,id):
         not_made_for_kids_radio = WebDriverWait(driver, 20).until(
             EC.element_to_be_clickable((By.NAME, 'VIDEO_MADE_FOR_KIDS_NOT_MFK'))
         )
+        time.sleep(15)
         not_made_for_kids_radio.click()
 
         show_more = WebDriverWait(driver, 20).until(
@@ -262,6 +269,7 @@ def browser_upload(video:YouTube,id):
         # Add tags
         tags_box = driver.find_element(By.XPATH, '//input[@aria-label="Tags"]')
         pyperclip.copy(TAGS)
+        time.sleep(3)
         tags_box.send_keys(Keys.CONTROL,"v")
 
         next_button = WebDriverWait(driver, 20).until(
@@ -283,11 +291,11 @@ def browser_upload(video:YouTube,id):
         save_button = WebDriverWait(driver, 20).until(
             EC.element_to_be_clickable((By.XPATH, '//*[@id="done-button"]'))
         )
-        time.sleep(4)
+        time.sleep(6.5)
         save_button.click()
 
         # Wait for the "Video processing" dialog to appear
-        WebDriverWait(driver, 600).until(
+        WebDriverWait(driver, 800).until(
             EC.visibility_of_element_located((By.XPATH, '//h1[@id="dialog-title" and contains(text(), "Video processing")]'))
         )
         print("Video processing dialog detected.")
@@ -300,8 +308,9 @@ def browser_upload(video:YouTube,id):
 with open('accounts.json', 'r') as file:
     accounts = json.load(file)
 # Iterate over the accounts and pass the "id" to the archive_channel function
+
+total = 0
 for account in accounts:
     channel_id = account.get("id")
     print(f'Archiving the channel: {account.get("name")}\n')
-    if channel_id:
-        archive_channel(channel_id)
+    archive_channel(channel_id)

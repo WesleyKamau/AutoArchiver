@@ -22,11 +22,19 @@ from dotenv import load_dotenv
 
 
 
-load_dotenv()
 
-# loggin into the channel
-channel = YTChannel()
-channel.login("client_secret.json", "credentials.storage")
+
+# # loggin into the channel
+# channel = YTChannel()
+# channel.login("client_secret.json", "credentials.storage")
+
+def archive_channel(channel_id):
+    initialize_folders()
+    videos = scrapetube.get_channel(channel_id)
+    for video in videos:
+        archive_video(YouTube('https://www.youtube.com/watch?v='+video['videoId'],
+        use_oauth=True,
+        allow_oauth_cache=True))
 
 def initialize_folders():
     if not os.path.exists('videos'):
@@ -130,16 +138,6 @@ def archive_video(video):
                 file.write(id+"\n")
             else:
                 print("Video already archived: "+video.title+" ("+id+")")
-    
-
-
-def archive_channel(channel_id):
-    initialize_folders()
-    videos = scrapetube.get_channel(channel_id)
-    for video in videos:
-        archive_video(YouTube('https://www.youtube.com/watch?v='+video['videoId'],
-        use_oauth=True,
-        allow_oauth_cache=True))
 
 def upload_video(video:YouTube,id):
     # setting up the video that is going to be uploaded
@@ -299,18 +297,16 @@ def browser_upload(video:YouTube,id):
             EC.visibility_of_element_located((By.XPATH, '//h1[@id="dialog-title" and contains(text(), "Video processing")]'))
         )
         print("Video processing dialog detected.")
-
     finally:
         driver.quit()
 
-# archive_channel('UCb69WJJK-8FFvaNYw2q3OZA') # Jumanne 6
+load_dotenv()
+
 # Load the accounts.json file
 with open('accounts.json', 'r') as file:
     accounts = json.load(file)
 # Iterate over the accounts and pass the "id" to the archive_channel function
 
-total = 0
 for account in accounts:
-    channel_id = account.get("id")
     print(f'Archiving the channel: {account.get("name")}\n')
-    archive_channel(channel_id)
+    archive_channel(account.get("id"))

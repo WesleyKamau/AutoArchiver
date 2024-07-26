@@ -1,6 +1,6 @@
 from simple_youtube_api.Channel import Channel as YTChannel
 from simple_youtube_api.LocalVideo import LocalVideo
-from pytube import YouTube
+from pytubefix import YouTube
 import scrapetube
 import os.path
 import subprocess
@@ -19,6 +19,8 @@ from selenium.webdriver.common.keys import Keys
 import time
 import os
 from dotenv import load_dotenv
+
+
 
 
 
@@ -256,7 +258,7 @@ def browser_upload(video:YouTube,id):
         not_made_for_kids_radio = WebDriverWait(driver, 20).until(
             EC.element_to_be_clickable((By.NAME, 'VIDEO_MADE_FOR_KIDS_NOT_MFK'))
         )
-        time.sleep(15)
+        time.sleep(9)
         not_made_for_kids_radio.click()
 
         show_more = WebDriverWait(driver, 20).until(
@@ -293,7 +295,7 @@ def browser_upload(video:YouTube,id):
         save_button.click()
 
         # Wait for the "Video processing" dialog to appear
-        WebDriverWait(driver, 800).until(
+        WebDriverWait(driver, 2800).until(
             EC.visibility_of_element_located((By.XPATH, '//h1[@id="dialog-title" and contains(text(), "Video processing")]'))
         )
         print("Video processing dialog detected.")

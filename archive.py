@@ -198,7 +198,7 @@ def browser_upload(video:YouTube,id):
     password = os.getenv('YOUTUBE_PASSWORD')
 
     # Initialize the WebDriver (make sure to download the appropriate WebDriver and provide the correct path)
-    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()))
+    driver = webdriver.Chrome()
 
     try:
         print("Starting the upload process...")
